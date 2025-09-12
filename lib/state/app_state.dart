@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import '../data/transaction_repository.dart';
 import '../data/wallet_repository.dart';
 import '../models/transaction_model.dart';
-import '../models/transaction_model.dart';
 
 class AppState extends ChangeNotifier {
   final TransactionRepository repo;
