@@ -12,6 +12,7 @@ import 'wallets_screen.dart';
 import 'categories_screen.dart';
 import 'budgets_screen.dart';
 import 'reports_screen.dart';
+import '../widgets/app_bottom_bar.dart';
 
 class HomeScreen extends StatelessWidget {
   final AppState state;
@@ -40,61 +41,14 @@ class HomeScreen extends StatelessWidget {
           child: const Icon(Icons.add),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        bottomNavigationBar: BottomAppBar(
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 8,
-          child: SafeArea(
-            top: false,
-            child: SizedBox(
-              height: 80,
-              child: Row(
-              children: [
-                Expanded(
-                  child: _BottomAction(
-                    icon: Icons.account_balance_wallet,
-                    label: 'Wallets',
-                    onTap: () {
-                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => WalletsScreen(repo: walletRepo)));
-                    },
-                  ),
-                ),
-                Expanded(
-                  child: _BottomAction(
-                    icon: Icons.category,
-                    label: 'Categories',
-                    onTap: () {
-                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => CategoriesScreen(repo: categoryRepo)));
-                    },
-                  ),
-                ),
-                const SizedBox(width: 80),
-                Expanded(
-                  child: _BottomAction(
-                    icon: Icons.pie_chart,
-                    label: 'Budgets',
-                    onTap: () {
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => BudgetsScreen(budgetRepo: BudgetRepository(), categoryRepo: categoryRepo, txRepo: repo),
-                      ));
-                    },
-                  ),
-                ),
-                Expanded(
-                  child: _BottomAction(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'Reports',
-                    onTap: () {
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => ReportsScreen(txRepo: repo, categoryRepo: categoryRepo),
-                      ));
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
+        bottomNavigationBar: AppBottomBar(
+          current: AppSection.home,
+          walletRepo: walletRepo,
+          categoryRepo: categoryRepo,
+          txRepo: repo,
+          state: state,
+          withNotch: true,
         ),
-      ),
         body: RefreshIndicator(
           onRefresh: () async => state.load(),
           child: ListView(
@@ -276,41 +230,6 @@ class _Kpi extends StatelessWidget {
           const SizedBox(height: 6),
           Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: onColor, fontWeight: FontWeight.w600)),
         ],
-      ),
-    );
-  }
-}
-
-class _BottomAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _BottomAction({required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 26, color: cs.onSurfaceVariant),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import '../../data/budget_repository.dart';
 import '../../data/category_repository.dart';
 import '../../data/transaction_repository.dart';
+import '../../data/wallet_repository.dart';
+import '../widgets/app_bottom_bar.dart';
+import '../../state/app_state.dart';
+import 'edit_transaction_screen.dart';
 import '../../models/budget_model.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
@@ -12,8 +16,10 @@ class BudgetsScreen extends StatefulWidget {
   final BudgetRepository budgetRepo;
   final CategoryRepository categoryRepo;
   final TransactionRepository txRepo;
+  final AppState state;
+  final WalletRepository walletRepo;
 
-  const BudgetsScreen({super.key, required this.budgetRepo, required this.categoryRepo, required this.txRepo});
+  const BudgetsScreen({super.key, required this.budgetRepo, required this.categoryRepo, required this.txRepo, required this.state, required this.walletRepo});
 
   @override
   State<BudgetsScreen> createState() => _BudgetsScreenState();
@@ -33,11 +39,27 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final year = _now.year;
     final month = _now.month;
     return Scaffold(
-      appBar: AppBar(title: const Text('Category Budgets')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openEditor(context),
-        child: const Icon(Icons.add_chart),
+      appBar: AppBar(
+        title: const Text('Category Budgets'),
+        actions: [
+          IconButton(
+            tooltip: 'New Budget',
+            icon: const Icon(Icons.add_chart),
+            onPressed: () => _openEditor(context),
+          )
+        ],
       ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-add-tx',
+        tooltip: 'Add transaction',
+        child: const Icon(Icons.add),
+        onPressed: () async {
+          await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => EditTransactionScreen(state: widget.state, categoryRepo: widget.categoryRepo, walletRepo: widget.walletRepo),
+          ));
+        },
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: ValueListenableBuilder(
         valueListenable: widget.budgetRepo.listenable(),
         builder: (context, box, _) {
@@ -115,6 +137,14 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             },
           );
         },
+      ),
+      bottomNavigationBar: AppBottomBar(
+        current: AppSection.budgets,
+        walletRepo: widget.walletRepo,
+        categoryRepo: widget.categoryRepo,
+        txRepo: widget.txRepo,
+        state: widget.state,
+        withNotch: true,
       ),
     );
   }

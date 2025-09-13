@@ -1,17 +1,30 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as Math;
 import 'package:fl_chart/fl_chart.dart';
 
 import '../../data/transaction_repository.dart';
 import '../../data/category_repository.dart';
+import '../../data/wallet_repository.dart';
 import '../../models/transaction_model.dart';
 import '../../models/category_model.dart';
 import '../../utils/currency.dart';
+import '../../state/app_state.dart';
+import '../widgets/app_bottom_bar.dart';
+import 'edit_transaction_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
   final TransactionRepository txRepo;
   final CategoryRepository categoryRepo;
+  final WalletRepository walletRepo;
+  final AppState state;
 
-  const ReportsScreen({super.key, required this.txRepo, required this.categoryRepo});
+  const ReportsScreen({
+    super.key,
+    required this.txRepo,
+    required this.categoryRepo,
+    required this.walletRepo,
+    required this.state,
+  });
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
@@ -38,17 +51,49 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reports')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text('This Month', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          _Card(child: _IncomeExpenseLineChart(series: daily)),
-          const SizedBox(height: 16),
-          Text('Expenses by Category', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          _Card(child: _CategoryPieChart(data: categories, categoryRepo: widget.categoryRepo)),
-        ],
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-add-tx',
+        tooltip: 'Add transaction',
+        child: const Icon(Icons.add),
+        onPressed: () async {
+          await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => EditTransactionScreen(
+              state: widget.state,
+              categoryRepo: widget.categoryRepo,
+              walletRepo: widget.walletRepo,
+            ),
+          ));
+          if (context.mounted) setState(() {});
+        },
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      body: ValueListenableBuilder(
+        valueListenable: widget.txRepo.listenable(),
+        builder: (context, _, __) {
+          final entries = widget.txRepo.getAll();
+          final daily = _buildDailySeries(entries);
+          final categories = _buildCategoryBreakdown(entries);
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text('This Month', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              _Card(child: _IncomeExpenseLineChart(series: daily)),
+              const SizedBox(height: 16),
+              Text('Expenses by Category', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              _Card(child: _CategoryPieChart(data: categories, categoryRepo: widget.categoryRepo)),
+            ],
+          );
+        },
+      ),
+      bottomNavigationBar: AppBottomBar(
+        current: AppSection.reports,
+        walletRepo: widget.walletRepo,
+        categoryRepo: widget.categoryRepo,
+        txRepo: widget.txRepo,
+        state: widget.state,
+        withNotch: true,
       ),
     );
   }
@@ -121,29 +166,78 @@ class _IncomeExpenseLineChart extends StatelessWidget {
       for (final d in days) FlSpot(d.toDouble(), series[d]!.expense)
     ];
 
-    final maxY = _maxY(incomeSpots, expenseSpots);
+    final nice = _niceScale(incomeSpots, expenseSpots);
+    final isEmptyData = nice.maxY <= 0.0;
 
     final chart = SizedBox(
-      height: 220,
+      height: 240,
       child: LineChart(
         LineChartData(
           minX: days.first.toDouble(),
           maxX: days.last.toDouble(),
           minY: 0,
-          maxY: maxY == 0 ? 1 : maxY,
-          gridData: FlGridData(show: true, drawVerticalLine: false),
+          maxY: isEmptyData ? 1 : nice.maxY,
+          clipData: const FlClipData.all(),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: true,
+            horizontalInterval: isEmptyData ? 1 : nice.interval,
+            verticalInterval: _xInterval(days.length),
+            getDrawingHorizontalLine: (value) => FlLine(
+              color: Theme.of(context).colorScheme.outlineVariant,
+              strokeWidth: 1,
+            ),
+            getDrawingVerticalLine: (value) => FlLine(
+              color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+              strokeWidth: 0.5,
+            ),
+          ),
           titlesData: FlTitlesData(
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 44, getTitlesWidget: (v, meta) {
-              return Text(formatRupiah(v, includeSymbol: false), style: Theme.of(context).textTheme.bodySmall);
-            })),
-            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: 5, getTitlesWidget: (v, meta) {
-              return Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(v.toInt().toString(), style: Theme.of(context).textTheme.bodySmall),
-              );
-            })),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 48,
+                interval: isEmptyData ? 1 : nice.interval,
+                getTitlesWidget: (v, meta) {
+                  return Text(_compactRupiah(v), style: Theme.of(context).textTheme.bodySmall);
+                },
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                interval: _xInterval(days.length),
+                getTitlesWidget: (v, meta) {
+                  final d = v.toInt();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(d.toString(), style: Theme.of(context).textTheme.bodySmall),
+                  );
+                },
+              ),
+            ),
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          borderData: FlBorderData(
+            show: true,
+            border: Border.all(color: Theme.of(context).dividerColor, width: 1),
+          ),
+          lineTouchData: LineTouchData(
+            handleBuiltInTouches: true,
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (spot) => Theme.of(context).colorScheme.surface.withOpacity(0.95),
+              getTooltipItems: (items) {
+                return items.map((it) {
+                  final day = it.x.toInt();
+                  final label = it.barIndex == 0 ? 'Income' : 'Expense';
+                  return LineTooltipItem(
+                    '$label\nDay $day\n${formatRupiah(it.y, includeSymbol: true)}',
+                    Theme.of(context).textTheme.bodySmall!,
+                  );
+                }).toList();
+              },
+            ),
           ),
           lineBarsData: [
             LineChartBarData(
@@ -152,6 +246,10 @@ class _IncomeExpenseLineChart extends StatelessWidget {
               color: Colors.green,
               barWidth: 3,
               dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(colors: [Colors.green.withOpacity(0.25), Colors.green.withOpacity(0.05)], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+              ),
             ),
             LineChartBarData(
               spots: expenseSpots,
@@ -159,6 +257,10 @@ class _IncomeExpenseLineChart extends StatelessWidget {
               color: Theme.of(context).colorScheme.error,
               barWidth: 3,
               dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(colors: [Theme.of(context).colorScheme.error.withOpacity(0.2), Theme.of(context).colorScheme.error.withOpacity(0.04)], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+              ),
             ),
           ],
         ),
@@ -181,15 +283,74 @@ class _IncomeExpenseLineChart extends StatelessWidget {
     );
   }
 
-  double _maxY(List<FlSpot> a, List<FlSpot> b) {
-    double m = 0;
+  // Decide a readable X interval given number of days
+  double _xInterval(int daysCount) {
+    if (daysCount <= 10) return 1;
+    if (daysCount <= 20) return 2;
+    return 5;
+  }
+
+  // Produce a nice Y scale with rounded max and tick interval
+  _NiceScale _niceScale(List<FlSpot> a, List<FlSpot> b) {
+    double maxVal = 0;
     for (final s in [...a, ...b]) {
-      if (s.y > m) m = s.y;
+      if (s.y > maxVal) maxVal = s.y;
     }
-    // Add a little headroom
-    return m * 1.2;
+    if (maxVal <= 0) return const _NiceScale(0, 1);
+    final exp = (maxVal == 0 ? 0 : (maxVal.log10()).floor());
+    final pow10 = Math.pow(10, exp).toDouble();
+    final f = maxVal / pow10;
+    double niceF;
+    if (f <= 1) {
+      niceF = 1;
+    } else if (f <= 2) {
+      niceF = 2;
+    } else if (f <= 5) {
+      niceF = 5;
+    } else {
+      niceF = 10;
+    }
+    final niceMax = niceF * pow10;
+    // aim for ~4 horizontal lines
+    final intervals = [1.0, 2.0, 2.5, 5.0, 10.0];
+    double base = niceMax / 4;
+    // round base to nice step
+    final baseExp = (base.log10()).floor();
+    final basePow10 = Math.pow(10, baseExp).toDouble();
+    final bf = base / basePow10;
+    double chosen = intervals.first;
+    for (final cand in intervals) {
+      if (bf <= cand) {
+        chosen = cand;
+        break;
+      }
+    }
+    final interval = chosen * basePow10;
+    return _NiceScale(niceMax, interval);
+  }
+
+  String _compactRupiah(double v) {
+    if (v >= 1e9) return '${(v / 1e9).toStringAsFixed(0)}B';
+    if (v >= 1e6) return '${(v / 1e6).toStringAsFixed(0)}M';
+    if (v >= 1e3) return '${(v / 1e3).toStringAsFixed(0)}k';
+    return v.toInt().toString();
   }
 }
+
+class _NiceScale {
+  final double maxY;
+  final double interval;
+  const _NiceScale(this.maxY, this.interval);
+}
+
+// Small helpers because dart:math has no log10()
+extension _Log10 on num {
+  double log10() => Math.log(this) / Math.ln10;
+}
+
+// Ignore name shadowing with dart:math
+// We alias Math to avoid confusion with Flutter's math utilities
+// and to make extension above compile cleanly.
 
 class _LegendDot extends StatelessWidget {
   final Color color;
@@ -252,12 +413,26 @@ class _CategoryPieChart extends StatelessWidget {
       children: [
         SizedBox(
           height: 220,
-          child: PieChart(
-            PieChartData(
-              sections: sections,
-              centerSpaceRadius: 40,
-              sectionsSpace: 2,
-            ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              PieChart(
+                PieChartData(
+                  sections: sections,
+                  centerSpaceRadius: 42,
+                  sectionsSpace: 2,
+                  pieTouchData: PieTouchData(enabled: true),
+                ),
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Total', style: Theme.of(context).textTheme.labelSmall),
+                  const SizedBox(height: 2),
+                  Text(formatRupiah(total), style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),

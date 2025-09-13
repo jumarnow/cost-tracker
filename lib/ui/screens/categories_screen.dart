@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import '../../icons/category_icons.dart';
 
 import '../../data/category_repository.dart';
+import '../../data/wallet_repository.dart';
+import '../../data/transaction_repository.dart';
+import '../widgets/app_bottom_bar.dart';
+import '../../state/app_state.dart';
+import 'edit_transaction_screen.dart';
 import '../../models/category_model.dart';
 
 class CategoriesScreen extends StatefulWidget {
   final CategoryRepository repo;
-  const CategoriesScreen({super.key, required this.repo});
+  final AppState state;
+  final WalletRepository walletRepo;
+  const CategoriesScreen({super.key, required this.repo, required this.state, required this.walletRepo});
 
   @override
   State<CategoriesScreen> createState() => _CategoriesScreenState();
@@ -16,13 +23,29 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Categories')),
+      appBar: AppBar(
+        title: const Text('Manage Categories'),
+        actions: [
+          IconButton(
+            tooltip: 'New Category',
+            icon: const Icon(Icons.add),
+            onPressed: () async {
+              await _openEditor(context);
+            },
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-add-tx',
+        tooltip: 'Add transaction',
         child: const Icon(Icons.add),
         onPressed: () async {
-          await _openEditor(context);
+          await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => EditTransactionScreen(state: widget.state, categoryRepo: widget.repo, walletRepo: widget.walletRepo),
+          ));
         },
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: ValueListenableBuilder(
         valueListenable: widget.repo.listenable(),
         builder: (context, box, _) {
@@ -71,6 +94,14 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             },
           );
         },
+      ),
+      bottomNavigationBar: AppBottomBar(
+        current: AppSection.more,
+        walletRepo: widget.walletRepo,
+        categoryRepo: widget.repo,
+        txRepo: TransactionRepository(),
+        state: widget.state,
+        withNotch: true,
       ),
     );
   }

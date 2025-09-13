@@ -48,7 +48,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     _categoryId = t?.categoryId ?? _defaultCategoryForType(_type);
     _walletId = t?.walletId ?? defaultWalletId;
     _date = t?.date ?? DateTime.now();
-    _amountController.text = t?.amount.toStringAsFixed(2) ?? '';
+    // Pre-fill amount without decimals and with thousands separators
+    _amountController.text = t != null ? formatRupiah(t.amount, includeSymbol: false) : '';
     _noteController.text = t?.note ?? '';
   }
 
@@ -109,7 +110,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             icon: const Icon(Icons.category),
             onPressed: () async {
               await Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => CategoriesScreen(repo: widget.categoryRepo),
+                builder: (_) => CategoriesScreen(repo: widget.categoryRepo, state: widget.state, walletRepo: widget.walletRepo),
               ));
               setState(() {}); // refresh dropdown after returning
             },

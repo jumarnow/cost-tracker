@@ -4,10 +4,17 @@ import '../../data/wallet_repository.dart';
 import '../../models/wallet_model.dart';
 import '../../utils/currency.dart';
 import 'package:flutter/services.dart';
+import '../../data/category_repository.dart';
+import '../../data/transaction_repository.dart';
+import '../widgets/app_bottom_bar.dart';
+import 'edit_transaction_screen.dart';
+import '../../state/app_state.dart';
 
 class WalletsScreen extends StatefulWidget {
   final WalletRepository repo;
-  const WalletsScreen({super.key, required this.repo});
+  final AppState state;
+  final CategoryRepository categoryRepo;
+  const WalletsScreen({super.key, required this.repo, required this.state, required this.categoryRepo});
 
   @override
   State<WalletsScreen> createState() => _WalletsScreenState();
@@ -17,11 +24,27 @@ class _WalletsScreenState extends State<WalletsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Wallets')),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
-        onPressed: () => _openEditor(context),
+      appBar: AppBar(
+        title: const Text('Manage Wallets'),
+        actions: [
+          IconButton(
+            tooltip: 'New Wallet',
+            icon: const Icon(Icons.add),
+            onPressed: () => _openEditor(context),
+          ),
+        ],
       ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'fab-add-tx',
+        tooltip: 'Add transaction',
+        child: const Icon(Icons.add),
+        onPressed: () async {
+          await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => EditTransactionScreen(state: widget.state, categoryRepo: widget.categoryRepo, walletRepo: widget.repo),
+          ));
+        },
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: ValueListenableBuilder(
         valueListenable: widget.repo.listenable(),
         builder: (context, box, _) {
@@ -67,6 +90,14 @@ class _WalletsScreenState extends State<WalletsScreen> {
             },
           );
         },
+      ),
+      bottomNavigationBar: AppBottomBar(
+        current: AppSection.more,
+        walletRepo: widget.repo,
+        categoryRepo: widget.categoryRepo,
+        txRepo: TransactionRepository(),
+        state: widget.state,
+        withNotch: true,
       ),
     );
   }
