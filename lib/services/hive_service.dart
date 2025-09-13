@@ -5,14 +5,17 @@ import 'dart:io' show Directory;
 import '../data/transaction_adapter.dart';
 import '../data/category_adapter.dart';
 import '../data/wallet_adapter.dart';
+import '../data/budget_adapter.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../models/wallet_model.dart';
+import '../models/budget_model.dart';
 
 class HiveService {
   static const String transactionsBox = 'transactions_box_v1';
   static const String categoriesBox = 'categories_box_v1';
   static const String walletsBox = 'wallets_box_v1';
+  static const String budgetsBox = 'budgets_box_v1';
 
   static Future<void> init() async {
     // Use default platform-specific location (works for mobile, desktop, web).
@@ -29,11 +32,13 @@ class HiveService {
       ..registerAdapter(TransactionTypeAdapter())
       ..registerAdapter(TransactionModelAdapter())
       ..registerAdapter(CategoryModelAdapter())
-      ..registerAdapter(WalletModelAdapter());
+      ..registerAdapter(WalletModelAdapter())
+      ..registerAdapter(BudgetModelAdapter());
 
     await Hive.openBox<TransactionModel>(transactionsBox);
     await Hive.openBox<CategoryModel>(categoriesBox);
     await Hive.openBox<WalletModel>(walletsBox);
+    await Hive.openBox<BudgetModel>(budgetsBox);
 
     // Seed default categories if empty
     final cBox = Hive.box<CategoryModel>(categoriesBox);
@@ -58,4 +63,7 @@ class HiveService {
 
   static Box<WalletModel> get wallets =>
       Hive.box<WalletModel>(walletsBox);
+
+  static Box<BudgetModel> get budgets =>
+      Hive.box<BudgetModel>(budgetsBox);
 }

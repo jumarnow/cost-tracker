@@ -81,65 +81,76 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     CategoryType selectedType = existing?.type ?? CategoryType.expense;
     await showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(existing == null ? 'New Category' : 'Edit Category'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
-              ),
-              const SizedBox(height: 12),
-              const Text('Icon'),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: Text(existing == null ? 'New Category' : 'Edit Category'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final icon in allowedCategoryIcons)
-                    ChoiceChip(
-                      label: Icon(icon),
-                      selected: selectedIcon == icon.codePoint,
-                      onSelected: (_) => setState(() => selectedIcon = icon.codePoint),
-                    )
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Icon'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final icon in allowedCategoryIcons)
+                        ChoiceChip(
+                          label: Icon(
+                            icon,
+                            color: selectedIcon == icon.codePoint
+                                ? Theme.of(context).colorScheme.onPrimaryContainer
+                                : null,
+                          ),
+                          selected: selectedIcon == icon.codePoint,
+                          selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                          showCheckmark: false,
+                          onSelected: (_) => setStateDialog(() => selectedIcon = icon.codePoint),
+                        )
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Type'),
+                  const SizedBox(height: 8),
+                  SegmentedButton<CategoryType>(
+                    segments: const [
+                      ButtonSegment(value: CategoryType.expense, label: Text('Expense'), icon: Icon(Icons.remove)),
+                      ButtonSegment(value: CategoryType.income, label: Text('Income'), icon: Icon(Icons.add)),
+                    ],
+                    selected: {selectedType},
+                    onSelectionChanged: (s) => setStateDialog(() => selectedType = s.first),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
-              const Text('Type'),
-              const SizedBox(height: 8),
-              SegmentedButton<CategoryType>(
-                segments: const [
-                  ButtonSegment(value: CategoryType.expense, label: Text('Expense'), icon: Icon(Icons.remove)),
-                  ButtonSegment(value: CategoryType.income, label: Text('Income'), icon: Icon(Icons.add)),
-                ],
-                selected: {selectedType},
-                onSelectionChanged: (s) => setState(() => selectedType = s.first),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () async {
+                  final name = nameCtrl.text.trim();
+                  if (name.isEmpty) return;
+                  if (existing == null) {
+                    final c = CategoryModel(id: CategoryRepository.newId(), name: name, iconCodePoint: selectedIcon, type: selectedType);
+                    await widget.repo.add(c);
+                  } else {
+                    final updated = existing.copyWith(name: name, iconCodePoint: selectedIcon, type: selectedType);
+                    final key = widget.repo.listenable().value.keyAt(index!);
+                    await widget.repo.putAt(key as int, updated);
+                  }
+                  if (context.mounted) Navigator.pop(context);
+                },
+                child: const Text('Save'),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              final name = nameCtrl.text.trim();
-              if (name.isEmpty) return;
-              if (existing == null) {
-                final c = CategoryModel(id: CategoryRepository.newId(), name: name, iconCodePoint: selectedIcon, type: selectedType);
-                await widget.repo.add(c);
-              } else {
-                final updated = existing.copyWith(name: name, iconCodePoint: selectedIcon, type: selectedType);
-                final key = widget.repo.listenable().value.keyAt(index!);
-                await widget.repo.putAt(key as int, updated);
-              }
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
