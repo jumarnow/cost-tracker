@@ -11,6 +11,8 @@ import '../../utils/currency.dart';
 import '../../state/app_state.dart';
 import '../widgets/app_bottom_bar.dart';
 import 'edit_transaction_screen.dart';
+import '../../data/settings_repository.dart';
+import '../../utils/date_period.dart';
 
 class ReportsScreen extends StatefulWidget {
   final TransactionRepository txRepo;
@@ -32,15 +34,14 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   late DateTime _now;
-  late DateTime _monthStart;
-  late DateTime _nextMonth;
+  late MonthPeriod _period;
 
   @override
   void initState() {
     super.initState();
     _now = DateTime.now();
-    _monthStart = DateTime(_now.year, _now.month);
-    _nextMonth = DateTime(_now.year, _now.month + 1);
+    final firstDay = SettingsRepository().getFirstDayOfMonth();
+    _period = computeCustomMonthPeriod(_now, firstDay);
   }
 
   @override
@@ -68,22 +69,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: ValueListenableBuilder(
-        valueListenable: widget.txRepo.listenable(),
-        builder: (context, _, __) {
-          final entries = widget.txRepo.getAll();
-          final daily = _buildDailySeries(entries);
-          final categories = _buildCategoryBreakdown(entries);
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text('This Month', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              _Card(child: _IncomeExpenseLineChart(series: daily)),
-              const SizedBox(height: 16),
-              Text('Expenses by Category', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              _Card(child: _CategoryPieChart(data: categories, categoryRepo: widget.categoryRepo)),
-            ],
+        valueListenable: SettingsRepository().listenable(),
+        builder: (context, __, ___) {
+          // Recompute period when settings change
+          final firstDay = SettingsRepository().getFirstDayOfMonth();
+          _period = computeCustomMonthPeriod(DateTime.now(), firstDay);
+          return ValueListenableBuilder(
+            valueListenable: widget.txRepo.listenable(),
+            builder: (context, _, __) {
+              final entries = widget.txRepo.getAll();
+              final daily = _buildDailySeries(entries);
+              final categories = _buildCategoryBreakdown(entries);
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Text('This Month', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  _Card(child: _IncomeExpenseLineChart(series: daily, days: _period.end.difference(_period.start).inDays)),
+                  const SizedBox(height: 16),
+                  Text('Expenses by Category', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  _Card(child: _CategoryPieChart(data: categories, categoryRepo: widget.categoryRepo)),
+                ],
+              );
+            },
           );
         },
       ),
@@ -102,18 +111,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final Map<int, _DailyPoint> out = {};
     for (final e in entries) {
       final t = e.model;
-      if (t.date.isBefore(_monthStart) || !t.date.isBefore(_nextMonth)) continue;
-      final day = DateTime(t.date.year, t.date.month, t.date.day).day;
-      out.putIfAbsent(day, () => _DailyPoint(day, 0, 0));
+      if (t.date.isBefore(_period.start) || !t.date.isBefore(_period.end)) continue;
+      final dayIndex = t.date.difference(_period.start).inDays + 1; // 1-based index within period
+      out.putIfAbsent(dayIndex, () => _DailyPoint(dayIndex, 0, 0));
       if (t.type == TransactionType.income) {
-        out[day] = out[day]!.copyWith(income: out[day]!.income + t.amount);
+        out[dayIndex] = out[dayIndex]!.copyWith(income: out[dayIndex]!.income + t.amount);
       } else {
-        out[day] = out[day]!.copyWith(expense: out[day]!.expense + t.amount);
+        out[dayIndex] = out[dayIndex]!.copyWith(expense: out[dayIndex]!.expense + t.amount);
       }
     }
     // Ensure all days exist for smooth chart
-    final daysInMonth = DateUtils.getDaysInMonth(_monthStart.year, _monthStart.month);
-    for (int d = 1; d <= daysInMonth; d++) {
+    final daysInPeriod = _period.end.difference(_period.start).inDays;
+    for (int d = 1; d <= daysInPeriod; d++) {
       out.putIfAbsent(d, () => _DailyPoint(d, 0, 0));
     }
     return out;
@@ -124,7 +133,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     for (final e in entries) {
       final t = e.model;
       if (t.type != TransactionType.expense) continue;
-      if (t.date.isBefore(_monthStart) || !t.date.isBefore(_nextMonth)) continue;
+      if (t.date.isBefore(_period.start) || !t.date.isBefore(_period.end)) continue;
       out[t.categoryId] = (out[t.categoryId] ?? 0) + t.amount;
     }
     return out;
@@ -154,16 +163,17 @@ class _DailyPoint {
 
 class _IncomeExpenseLineChart extends StatelessWidget {
   final Map<int, _DailyPoint> series;
-  const _IncomeExpenseLineChart({required this.series});
+  final int days; // days in current period
+  const _IncomeExpenseLineChart({required this.series, required this.days});
 
   @override
   Widget build(BuildContext context) {
-    final days = series.keys.toList()..sort();
+    final daysIdx = series.keys.toList()..sort();
     final incomeSpots = [
-      for (final d in days) FlSpot(d.toDouble(), series[d]!.income)
+      for (final d in daysIdx) FlSpot(d.toDouble(), series[d]!.income)
     ];
     final expenseSpots = [
-      for (final d in days) FlSpot(d.toDouble(), series[d]!.expense)
+      for (final d in daysIdx) FlSpot(d.toDouble(), series[d]!.expense)
     ];
 
     final nice = _niceScale(incomeSpots, expenseSpots);
@@ -173,8 +183,8 @@ class _IncomeExpenseLineChart extends StatelessWidget {
       height: 240,
       child: LineChart(
         LineChartData(
-          minX: days.first.toDouble(),
-          maxX: days.last.toDouble(),
+          minX: daysIdx.first.toDouble(),
+          maxX: daysIdx.last.toDouble(),
           minY: 0,
           maxY: isEmptyData ? 1 : nice.maxY,
           clipData: const FlClipData.all(),
@@ -182,7 +192,7 @@ class _IncomeExpenseLineChart extends StatelessWidget {
             show: true,
             drawVerticalLine: true,
             horizontalInterval: isEmptyData ? 1 : nice.interval,
-            verticalInterval: _xInterval(days.length),
+            verticalInterval: _xIntervalLocal(days),
             getDrawingHorizontalLine: (value) => FlLine(
               color: Theme.of(context).colorScheme.outlineVariant,
               strokeWidth: 1,
@@ -206,7 +216,7 @@ class _IncomeExpenseLineChart extends StatelessWidget {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                interval: _xInterval(days.length),
+                interval: _xIntervalLocal(days),
                 getTitlesWidget: (v, meta) {
                   final d = v.toInt();
                   return Padding(
@@ -283,12 +293,13 @@ class _IncomeExpenseLineChart extends StatelessWidget {
     );
   }
 
-  // Decide a readable X interval given number of days
-  double _xInterval(int daysCount) {
+  double _xIntervalLocal(int daysCount) {
     if (daysCount <= 10) return 1;
     if (daysCount <= 20) return 2;
     return 5;
   }
+
+  
 
   // Produce a nice Y scale with rounded max and tick interval
   _NiceScale _niceScale(List<FlSpot> a, List<FlSpot> b) {

@@ -90,4 +90,19 @@ class TransactionRepository {
     }
     return income - expense;
   }
+
+  double totalForRange(DateTime start, DateTime end) {
+    double income = 0, expense = 0;
+    for (final t in _box.values) {
+      if (t.date.isAfter(start.subtract(const Duration(milliseconds: 1))) &&
+          t.date.isBefore(end)) {
+        if (t.type == TransactionType.income) {
+          income += t.amount;
+        } else {
+          expense += t.amount;
+        }
+      }
+    }
+    return income - expense;
+  }
 }

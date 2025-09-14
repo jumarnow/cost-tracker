@@ -16,6 +16,7 @@ class HiveService {
   static const String categoriesBox = 'categories_box_v1';
   static const String walletsBox = 'wallets_box_v1';
   static const String budgetsBox = 'budgets_box_v1';
+  static const String settingsBox = 'settings_box_v1';
 
   static Future<void> init() async {
     // Use default platform-specific location (works for mobile, desktop, web).
@@ -39,6 +40,7 @@ class HiveService {
     await Hive.openBox<CategoryModel>(categoriesBox);
     await Hive.openBox<WalletModel>(walletsBox);
     await Hive.openBox<BudgetModel>(budgetsBox);
+    await Hive.openBox(settingsBox);
 
     // Seed default categories if empty
     final cBox = Hive.box<CategoryModel>(categoriesBox);
@@ -66,4 +68,6 @@ class HiveService {
 
   static Box<BudgetModel> get budgets =>
       Hive.box<BudgetModel>(budgetsBox);
+
+  static Box get settings => Hive.box(settingsBox);
 }

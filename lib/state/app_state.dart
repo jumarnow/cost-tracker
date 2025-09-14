@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../data/transaction_repository.dart';
 import '../data/wallet_repository.dart';
 import '../models/transaction_model.dart';
+import '../data/settings_repository.dart';
+import '../utils/date_period.dart';
 
 class AppState extends ChangeNotifier {
   final TransactionRepository repo;
@@ -69,6 +71,8 @@ class AppState extends ChangeNotifier {
     _balance = repo.totalBalance();
     final now = DateTime.now();
     _today = repo.totalForDay(now);
-    _month = repo.totalForMonth(now);
+    final firstDay = SettingsRepository().getFirstDayOfMonth();
+    final period = computeCustomMonthPeriod(now, firstDay);
+    _month = repo.totalForRange(period.start, period.end);
   }
 }

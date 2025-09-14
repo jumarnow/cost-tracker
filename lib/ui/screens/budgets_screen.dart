@@ -11,6 +11,8 @@ import '../../models/budget_model.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../utils/currency.dart';
+import '../../data/settings_repository.dart';
+import '../../utils/date_period.dart';
 
 class BudgetsScreen extends StatefulWidget {
   final BudgetRepository budgetRepo;
@@ -36,8 +38,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final year = _now.year;
-    final month = _now.month;
+    final firstDay = SettingsRepository().getFirstDayOfMonth();
+    final period = computeCustomMonthPeriod(DateTime.now(), firstDay);
+    final year = period.start.year;
+    final month = period.start.month;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Category Budgets'),
@@ -150,8 +154,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   }
 
   double _spentForCategoryThisMonth(String categoryId) {
-    final monthStart = DateTime(_now.year, _now.month);
-    final nextMonth = DateTime(_now.year, _now.month + 1);
+    final firstDay = SettingsRepository().getFirstDayOfMonth();
+    final period = computeCustomMonthPeriod(DateTime.now(), firstDay);
+    final monthStart = period.start;
+    final nextMonth = period.end;
     double total = 0;
     for (final e in widget.txRepo.getAll()) {
       final t = e.model;

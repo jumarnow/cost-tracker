@@ -92,7 +92,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
         },
       ),
       bottomNavigationBar: AppBottomBar(
-        current: AppSection.more,
+        current: AppSection.settings,
         walletRepo: widget.repo,
         categoryRepo: widget.categoryRepo,
         txRepo: TransactionRepository(),
@@ -104,7 +104,9 @@ class _WalletsScreenState extends State<WalletsScreen> {
 
   Future<void> _openEditor(BuildContext context, {WalletModel? existing, int? index}) async {
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
-    final balanceCtrl = TextEditingController(text: (existing?.balance ?? 0).toStringAsFixed(2));
+    final balanceCtrl = TextEditingController(
+      text: formatRupiah(existing?.balance ?? 0, includeSymbol: false),
+    );
     await showDialog(
       context: context,
       builder: (_) => AlertDialog(

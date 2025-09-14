@@ -96,7 +96,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         },
       ),
       bottomNavigationBar: AppBottomBar(
-        current: AppSection.more,
+        current: AppSection.settings,
         walletRepo: widget.walletRepo,
         categoryRepo: widget.repo,
         txRepo: TransactionRepository(),
