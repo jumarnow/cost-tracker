@@ -5,6 +5,7 @@ import '../../data/category_repository.dart';
 import '../../data/wallet_repository.dart';
 import '../../data/budget_repository.dart';
 import '../../state/app_state.dart';
+import '../../models/transaction_model.dart';
 import '../../utils/currency.dart';
 import '../widgets/transaction_list_item.dart';
 import 'edit_transaction_screen.dart';
@@ -83,11 +84,35 @@ class HomeScreen extends StatelessWidget {
 
     final widgets = <Widget>[];
     for (final date in sortedDates) {
+      final dayEntries = groups[date]!;
+      double net = 0;
+      for (final entry in dayEntries) {
+        final model = entry.model;
+        net += model.type == TransactionType.income ? model.amount : -model.amount;
+      }
+      final totalLabel = net == 0
+          ? formatRupiah(0)
+          : net > 0
+              ? '+${formatRupiah(net)}'
+              : '-${formatRupiah(net.abs())}';
       widgets.add(Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Text(_formatSectionDate(date), style: Theme.of(context).textTheme.titleSmall),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(child: Text(_formatSectionDate(date), style: Theme.of(context).textTheme.titleSmall)),
+            const SizedBox(width: 12),
+            Text(
+              totalLabel,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: net >= 0 ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ],
+        ),
       ));
-      widgets.addAll(groups[date]!.map((e) => Dismissible(
+      widgets.addAll(dayEntries.map((e) => Dismissible(
             key: ValueKey(e.key),
             background: Container(
               alignment: Alignment.centerLeft,

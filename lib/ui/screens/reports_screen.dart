@@ -80,12 +80,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
               final entries = widget.txRepo.getAll();
               final daily = _buildDailySeries(entries);
               final categories = _buildCategoryBreakdown(entries);
+              final daysInPeriod = _period.end.difference(_period.start).inDays;
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
                   Text('This Month', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  _Card(child: _IncomeExpenseLineChart(series: daily, days: _period.end.difference(_period.start).inDays)),
+                  _Card(
+                    child: _IncomeExpenseLineChart(
+                      series: daily,
+                      days: daysInPeriod,
+                      startDate: _period.start,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Text('Expenses by Category', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
@@ -164,11 +171,13 @@ class _DailyPoint {
 class _IncomeExpenseLineChart extends StatelessWidget {
   final Map<int, _DailyPoint> series;
   final int days; // days in current period
-  const _IncomeExpenseLineChart({required this.series, required this.days});
+  final DateTime startDate;
+  const _IncomeExpenseLineChart({required this.series, required this.days, required this.startDate});
 
   @override
   Widget build(BuildContext context) {
     final daysIdx = series.keys.toList()..sort();
+    DateTime dateForIndex(int index) => startDate.add(Duration(days: index - 1));
     final incomeSpots = [
       for (final d in daysIdx) FlSpot(d.toDouble(), series[d]!.income)
     ];
@@ -218,10 +227,16 @@ class _IncomeExpenseLineChart extends StatelessWidget {
                 showTitles: true,
                 interval: _xIntervalLocal(days),
                 getTitlesWidget: (v, meta) {
+                  if (v % 1 != 0) return const SizedBox.shrink();
                   final d = v.toInt();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(d.toString(), style: Theme.of(context).textTheme.bodySmall),
+                  final date = dateForIndex(d);
+                  return SideTitleWidget(
+                    axisSide: meta.axisSide,
+                    space: 4,
+                    child: Text(
+                      date.day.toString(),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   );
                 },
               ),
@@ -239,10 +254,11 @@ class _IncomeExpenseLineChart extends StatelessWidget {
               getTooltipColor: (spot) => Theme.of(context).colorScheme.surface.withOpacity(0.95),
               getTooltipItems: (items) {
                 return items.map((it) {
-                  final day = it.x.toInt();
+                  final day = it.x.round();
+                  final date = dateForIndex(day);
                   final label = it.barIndex == 0 ? 'Income' : 'Expense';
                   return LineTooltipItem(
-                    '$label\nDay $day\n${formatRupiah(it.y, includeSymbol: true)}',
+                    '$label\n${date.day}/${date.month}\n${formatRupiah(it.y, includeSymbol: true)}',
                     Theme.of(context).textTheme.bodySmall!,
                   );
                 }).toList();
