@@ -6,10 +6,10 @@ import '../../data/transaction_repository.dart';
 import '../../data/category_repository.dart';
 import '../../data/wallet_repository.dart';
 import '../../models/transaction_model.dart';
-import '../../models/category_model.dart';
 import '../../utils/currency.dart';
 import '../../state/app_state.dart';
 import '../widgets/app_bottom_bar.dart';
+import 'category_transactions_screen.dart';
 import 'edit_transaction_screen.dart';
 import '../../data/settings_repository.dart';
 import '../../utils/date_period.dart';
@@ -33,23 +33,43 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  late DateTime _now;
+  late DateTime _selectedMonth;
   late MonthPeriod _period;
 
   @override
   void initState() {
     super.initState();
-    _now = DateTime.now();
+    _selectedMonth = DateTime.now();
     final firstDay = SettingsRepository().getFirstDayOfMonth();
-    _period = computeCustomMonthPeriod(_now, firstDay);
+    _period = computeCustomMonthPeriod(_selectedMonth, firstDay);
+  }
+
+  void _previousMonth() {
+    setState(() {
+      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, _selectedMonth.day);
+      final firstDay = SettingsRepository().getFirstDayOfMonth();
+      _period = computeCustomMonthPeriod(_selectedMonth, firstDay);
+    });
+  }
+
+  void _nextMonth() {
+    setState(() {
+      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, _selectedMonth.day);
+      final firstDay = SettingsRepository().getFirstDayOfMonth();
+      _period = computeCustomMonthPeriod(_selectedMonth, firstDay);
+    });
+  }
+
+  String _formatMonthYear(DateTime date) {
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return '${months[date.month - 1]} ${date.year}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final entries = widget.txRepo.getAll();
-    final daily = _buildDailySeries(entries);
-    final categories = _buildCategoryBreakdown(entries);
-
     return Scaffold(
       appBar: AppBar(title: const Text('Reports')),
       floatingActionButton: FloatingActionButton(
@@ -73,7 +93,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         builder: (context, __, ___) {
           // Recompute period when settings change
           final firstDay = SettingsRepository().getFirstDayOfMonth();
-          _period = computeCustomMonthPeriod(DateTime.now(), firstDay);
+          _period = computeCustomMonthPeriod(_selectedMonth, firstDay);
           return ValueListenableBuilder(
             valueListenable: widget.txRepo.listenable(),
             builder: (context, _, __) {
@@ -81,9 +101,38 @@ class _ReportsScreenState extends State<ReportsScreen> {
               final daily = _buildDailySeries(entries);
               final categories = _buildCategoryBreakdown(entries);
               final daysInPeriod = _period.end.difference(_period.start).inDays;
+              final palette = _categoryPalette(Theme.of(context).colorScheme);
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  // Month filter navigation
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chevron_left),
+                            onPressed: _previousMonth,
+                            tooltip: 'Bulan sebelumnya',
+                          ),
+                          Text(
+                            _formatMonthYear(_selectedMonth),
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.chevron_right),
+                            onPressed: _nextMonth,
+                            tooltip: 'Bulan berikutnya',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Text('This Month', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   _Card(
@@ -96,7 +145,40 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   const SizedBox(height: 16),
                   Text('Expenses by Category', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  _Card(child: _CategoryPieChart(data: categories, categoryRepo: widget.categoryRepo)),
+                  _Card(child: _CategoryPieChart(data: categories, categoryRepo: widget.categoryRepo, palette: palette)),
+                  const SizedBox(height: 16),
+                  Text('Category Details', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  if (categories.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: Text('No category expenses this period.')),
+                    )
+                  else
+                    ...categories.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final item = entry.value;
+                      final color = palette[idx % palette.length];
+                      final cat = widget.categoryRepo.getById(item.categoryId);
+                      final label = cat?.name ?? 'Unknown';
+                      return _CategoryRow(
+                        label: label,
+                        amount: item.amount,
+                        color: color,
+                        onTap: () {
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => CategoryTransactionsScreen(
+                              categoryId: item.categoryId,
+                              period: _period,
+                              txRepo: widget.txRepo,
+                              categoryRepo: widget.categoryRepo,
+                              walletRepo: widget.walletRepo,
+                              state: widget.state,
+                            ),
+                          ));
+                        },
+                      );
+                    }),
                 ],
               );
             },
@@ -135,7 +217,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return out;
   }
 
-  Map<String, double> _buildCategoryBreakdown(List<TransactionEntry> entries) {
+  List<_CategoryReportItem> _buildCategoryBreakdown(List<TransactionEntry> entries) {
     final Map<String, double> out = {};
     for (final e in entries) {
       final t = e.model;
@@ -143,7 +225,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (t.date.isBefore(_period.start) || !t.date.isBefore(_period.end)) continue;
       out[t.categoryId] = (out[t.categoryId] ?? 0) + t.amount;
     }
-    return out;
+    return out.entries.map((e) => _CategoryReportItem(categoryId: e.key, amount: e.value)).toList();
   }
 }
 
@@ -379,6 +461,16 @@ extension _Log10 on num {
 // We alias Math to avoid confusion with Flutter's math utilities
 // and to make extension above compile cleanly.
 
+List<Color> _categoryPalette(ColorScheme cs) => [
+      cs.primary,
+      cs.secondary,
+      cs.tertiary,
+      cs.error,
+      cs.primaryContainer,
+      cs.secondaryContainer,
+      cs.tertiaryContainer,
+    ];
+
 class _LegendDot extends StatelessWidget {
   final Color color;
   final String label;
@@ -396,10 +488,37 @@ class _LegendDot extends StatelessWidget {
   }
 }
 
+class _CategoryRow extends StatelessWidget {
+  final String label;
+  final double amount;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CategoryRow({required this.label, required this.amount, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: color.withOpacity(0.2),
+          child: Icon(Icons.label, color: color, size: 16),
+        ),
+        title: Text(label),
+        trailing: Text(formatRupiah(amount), style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
 class _CategoryPieChart extends StatelessWidget {
-  final Map<String, double> data; // categoryId -> amount
+  final List<_CategoryReportItem> data;
   final CategoryRepository categoryRepo;
-  const _CategoryPieChart({required this.data, required this.categoryRepo});
+  final List<Color> palette;
+
+  const _CategoryPieChart({required this.data, required this.categoryRepo, required this.palette});
 
   @override
   Widget build(BuildContext context) {
@@ -410,29 +529,27 @@ class _CategoryPieChart extends StatelessWidget {
       );
     }
 
-    final total = data.values.fold<double>(0, (a, b) => a + b);
+    final total = data.fold<double>(0, (sum, item) => sum + item.amount);
     final sections = <PieChartSectionData>[];
-    final colors = _palette(Theme.of(context).colorScheme);
-    int i = 0;
-    for (final entry in data.entries) {
-      final amount = entry.value;
+    for (int i = 0; i < data.length; i++) {
+      final entry = data[i];
+      final amount = entry.amount;
       final pct = amount / (total == 0 ? 1 : total);
       sections.add(PieChartSectionData(
         value: amount,
-        color: colors[i % colors.length],
+        color: palette[i % palette.length],
         title: '${(pct * 100).toStringAsFixed(0)}%',
         radius: 60,
         titleStyle: Theme.of(context).textTheme.labelLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
       ));
-      i++;
     }
 
     final legend = [
-      for (final e in data.entries)
+      for (int i = 0; i < data.length; i++)
         _LegendEntry(
-          color: colors[data.keys.toList().indexOf(e.key) % colors.length],
-          label: categoryRepo.getById(e.key)?.name ?? 'Unknown',
-          amount: e.value,
+          color: palette[i % palette.length],
+          label: categoryRepo.getById(data[i].categoryId)?.name ?? 'Unknown',
+          amount: data[i].amount,
         ),
     ];
 
@@ -478,21 +595,18 @@ class _CategoryPieChart extends StatelessWidget {
       ],
     );
   }
-
-  List<Color> _palette(ColorScheme cs) => [
-        cs.primary,
-        cs.secondary,
-        cs.tertiary,
-        cs.error,
-        cs.primaryContainer,
-        cs.secondaryContainer,
-        cs.tertiaryContainer,
-      ];
 }
+
 
 class _LegendEntry {
   final Color color;
   final String label;
   final double amount;
   _LegendEntry({required this.color, required this.label, required this.amount});
+}
+
+class _CategoryReportItem {
+  final String categoryId;
+  final double amount;
+  _CategoryReportItem({required this.categoryId, required this.amount});
 }
