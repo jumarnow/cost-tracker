@@ -9,7 +9,6 @@ import '../../models/transaction_model.dart';
 import '../../utils/currency.dart';
 import '../../state/app_state.dart';
 import '../widgets/app_bottom_bar.dart';
-import '../widgets/year_comparison_widget.dart';
 import 'category_transactions_screen.dart';
 import 'edit_transaction_screen.dart';
 import '../../data/settings_repository.dart';
@@ -106,13 +105,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // Year comparison (at the top)
-                  YearComparisonWidget(
-                    txRepo: widget.txRepo,
-                    currentYear: DateTime.now().year,
-                  ),
-                  const SizedBox(height: 16),
-                  
                   // Month filter navigation
                   Card(
                     child: Padding(

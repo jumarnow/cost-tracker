@@ -233,8 +233,7 @@ if (state.entries.isEmpty)
 
 #### **Reports & Analytics**
 - Sudah ada `ReportsScreen` ✅
-- ✅ **IMPLEMENTED** - Year-over-year comparison with trends and monthly breakdown
-- Bisa ditambah: trend analysis, export PDF (future enhancement)
+- Bisa ditambah: year-over-year comparison, trend analysis, export PDF (future enhancement)
 
 #### **Multi-Currency**
 - Saat ini hardcoded Rupiah
