@@ -10,6 +10,8 @@ class BudgetRepository {
 
   ValueListenable<Box<BudgetModel>> listenable() => _box.listenable();
 
+  List<BudgetModel> all() => _box.values.toList();
+
   List<BudgetModel> forMonth(int year, int month) {
     return _box.values
         .where((b) => b.year == year && b.month == month)

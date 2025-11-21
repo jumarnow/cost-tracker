@@ -11,7 +11,9 @@ class SettingsRepository {
 
   ValueListenable<Box> listenable() => _box.listenable();
 
-  int getFirstDayOfMonth() => 26;
+  int getFirstDayOfMonth() {
+    return _box.get(kFirstDayOfMonth, defaultValue: 1) as int;
+  }
 
   Future<void> setFirstDayOfMonth(int day) async {
     final d = day.clamp(1, 28);

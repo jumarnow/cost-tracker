@@ -3,16 +3,12 @@ import 'package:flutter/material.dart';
 import '../../data/transaction_repository.dart';
 import '../../data/category_repository.dart';
 import '../../data/wallet_repository.dart';
-import '../../data/budget_repository.dart';
 import '../../state/app_state.dart';
 import '../../models/transaction_model.dart';
 import '../../utils/currency.dart';
 import '../widgets/transaction_list_item.dart';
 import 'edit_transaction_screen.dart';
-import 'wallets_screen.dart';
-import 'categories_screen.dart';
-import 'budgets_screen.dart';
-import 'reports_screen.dart';
+import 'search_screen.dart';
 import '../widgets/app_bottom_bar.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -30,6 +26,22 @@ class HomeScreen extends StatelessWidget {
       builder: (context, _) => Scaffold(
         appBar: AppBar(
           title: const Text('Finance Tracker'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: 'Search transactions',
+              onPressed: () {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => SearchScreen(
+                    state: state,
+                    txRepo: repo,
+                    categoryRepo: categoryRepo,
+                    walletRepo: walletRepo,
+                  ),
+                ));
+              },
+            ),
+          ],
         ),
         floatingActionButton: FloatingActionButton(
           heroTag: 'fab-add',
@@ -231,8 +243,6 @@ class _SummaryCard extends StatelessWidget {
       ),
     );
   }
-
-  String _fmt(double v) => formatRupiah(v);
 }
 
 class _Kpi extends StatelessWidget {
