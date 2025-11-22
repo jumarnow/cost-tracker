@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 
 import '../../data/transaction_repository.dart';
 import '../../data/category_repository.dart';
@@ -8,6 +10,8 @@ import '../../data/settings_repository.dart';
 import '../../services/export_service.dart';
 import '../../state/app_state.dart';
 import '../widgets/app_bottom_bar.dart';
+import 'categories_screen.dart';
+import 'wallets_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final AppState state;
@@ -120,23 +124,82 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _importJson() async {
-    await showDialog<void>(
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+
+    if (result == null || result.files.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Import Data'),
         content: const Text(
-          'Import feature coming soon!\n\n'
-          'You can export your data to JSON format, '
-          'and in a future update you will be able to import it back.',
+          'This will import all data from the selected file. '
+          'Existing data will be preserved, but duplicates may occur. '
+          'Continue?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Import'),
           ),
         ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    setState(() => _isImporting = true);
+
+    try {
+      final exportService = ExportService(
+        transactionRepo: widget.txRepo,
+        categoryRepo: widget.categoryRepo,
+        walletRepo: widget.walletRepo,
+        budgetRepo: widget.budgetRepo,
+      );
+
+      final file = File(result.files.first.path!);
+      final importResult = await exportService.importFromJson(file);
+
+      if (mounted) {
+        if (importResult.success) {
+          widget.state.load(); // Refresh data
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(importResult.message),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(importResult.message),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Import failed: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isImporting = false);
+    }
   }
 
   @override
@@ -161,6 +224,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text('Day $_firstDayOfMonth'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _showFirstDayPicker(),
+          ),
+          
+          const Divider(),
+          _buildSectionHeader('Manage'),
+          
+          ListTile(
+            leading: const Icon(Icons.category),
+            title: const Text('Categories'),
+            subtitle: const Text('Manage income and expense categories'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => CategoriesScreen(
+                  repo: widget.categoryRepo,
+                  state: widget.state,
+                  walletRepo: widget.walletRepo,
+                ),
+              ));
+            },
+          ),
+          
+          ListTile(
+            leading: const Icon(Icons.account_balance_wallet),
+            title: const Text('Wallets'),
+            subtitle: const Text('Manage your wallets and accounts'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => WalletsScreen(
+                  repo: widget.walletRepo,
+                  state: widget.state,
+                  categoryRepo: widget.categoryRepo,
+                ),
+              ));
+            },
           ),
           
           const Divider(),
