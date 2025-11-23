@@ -201,68 +201,200 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    
+    // Calculate income and expense
+    double income = 0;
+    double expense = 0;
+    for (final entry in state.entries) {
+      if (entry.model.type == TransactionType.income) {
+        income += entry.model.amount;
+      } else {
+        expense += entry.model.amount;
+      }
+    }
+    final balance = income - expense;
+    
     return Card(
-      clipBehavior: Clip.antiAlias,
+      elevation: 0,
+      color: cs.primaryContainer.withOpacity(0.3),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Balance', style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: 8),
-            Text(
-              formatRupiah(state.balance),
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: cs.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.account_balance_wallet, color: cs.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Ringkasan Keuangan', 
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurface,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: balance >= 0 
+                    ? [Colors.green.shade50, Colors.green.shade100]
+                    : [Colors.red.shade50, Colors.red.shade100],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: balance >= 0 ? Colors.green.shade200 : Colors.red.shade200,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Saldo Total',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formatRupiah(balance),
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          color: balance >= 0 ? Colors.green[800] : Colors.red[800],
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: balance >= 0 ? Colors.green[700] : Colors.red[700],
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      balance >= 0 ? Icons.trending_up : Icons.trending_down,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
-                  child: _Kpi(
-                    label: 'Today',
-                    value: formatRupiah(state.today),
-                    color: cs.primaryContainer,
-                    onColor: cs.onPrimaryContainer,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green.shade200, width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(Icons.south_west, color: Colors.green[700], size: 16),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Pendapatan',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          formatRupiah(income),
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _Kpi(
-                    label: 'This Month',
-                    value: formatRupiah(state.month),
-                    color: cs.secondaryContainer,
-                    onColor: cs.onSecondaryContainer,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.shade200, width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(Icons.north_east, color: Colors.red[700], size: 16),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Pengeluaran',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          formatRupiah(expense),
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.red[700],
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
-            )
+            ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Kpi extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final Color onColor;
-
-  const _Kpi({required this.label, required this.value, required this.color, required this.onColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: onColor)),
-          const SizedBox(height: 6),
-          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: onColor, fontWeight: FontWeight.w600)),
-        ],
       ),
     );
   }

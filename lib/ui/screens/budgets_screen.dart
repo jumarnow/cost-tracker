@@ -187,6 +187,15 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         ? expenseCategories
         : expenseCategories.where((c) => !usedIds.contains(c.id)).toList();
 
+    if (!isEditing && availableCategories.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Semua kategori sudah memiliki budget bulan ini')),
+        );
+      }
+      return;
+    }
+
     CategoryModel? selectedCategory = isEditing
         ? _categoryRepo.getById(existing!.categoryId)
         : (availableCategories.isNotEmpty ? availableCategories.first : null);
@@ -197,58 +206,119 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
     await showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(isEditing ? 'Edit Budget' : 'New Budget'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DropdownButtonFormField<CategoryModel>(
-                value: selectedCategory,
-                items: [
-                  for (final c in availableCategories)
-                    DropdownMenuItem(value: c, child: Row(children: [Icon(c.icon), const SizedBox(width: 8), Text(c.name)])),
-                ],
-                onChanged: isEditing ? null : (v) => setState(() => selectedCategory = v),
-                decoration: const InputDecoration(labelText: 'Category'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: limitCtrl,
-                decoration: const InputDecoration(labelText: 'Monthly limit (Rp)'),
-                keyboardType: TextInputType.number,
-                inputFormatters: [RupiahThousandsFormatter()],
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              if (selectedCategory == null) return;
-              final limit = parseRupiahToDouble(limitCtrl.text);
-              if (limit <= 0) return;
-              final id = BudgetRepository.idFor(selectedCategory!.id, now.year, now.month);
-              final model = BudgetModel(
-                id: id,
-                categoryId: selectedCategory!.id,
-                year: now.year,
-                month: now.month,
-                limit: limit,
-              );
-              if (isEditing) {
-                await _budgetRepo.putAt(boxIndex!, model);
-              } else {
-                await _budgetRepo.upsertById(model);
-              }
-              if (context.mounted) Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (dialogContext) => _BudgetEditorDialog(
+        isEditing: isEditing,
+        selectedCategory: selectedCategory,
+        availableCategories: availableCategories,
+        limitCtrl: limitCtrl,
+        onSave: (CategoryModel? category, String limitText) async {
+          if (category == null) return;
+          final limit = parseRupiahToDouble(limitText);
+          if (limit <= 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Masukkan jumlah budget yang valid')),
+            );
+            return;
+          }
+          final id = BudgetRepository.idFor(category.id, now.year, now.month);
+          final model = BudgetModel(
+            id: id,
+            categoryId: category.id,
+            year: now.year,
+            month: now.month,
+            limit: limit,
+          );
+          if (isEditing) {
+            await _budgetRepo.putAt(boxIndex!, model);
+          } else {
+            await _budgetRepo.upsertById(model);
+          }
+          if (dialogContext.mounted) Navigator.pop(dialogContext);
+        },
       ),
+    );
+  }
+}
+
+class _BudgetEditorDialog extends StatefulWidget {
+  final bool isEditing;
+  final CategoryModel? selectedCategory;
+  final List<CategoryModel> availableCategories;
+  final TextEditingController limitCtrl;
+  final Future<void> Function(CategoryModel?, String) onSave;
+
+  const _BudgetEditorDialog({
+    required this.isEditing,
+    required this.selectedCategory,
+    required this.availableCategories,
+    required this.limitCtrl,
+    required this.onSave,
+  });
+
+  @override
+  State<_BudgetEditorDialog> createState() => _BudgetEditorDialogState();
+}
+
+class _BudgetEditorDialogState extends State<_BudgetEditorDialog> {
+  late CategoryModel? _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategory = widget.selectedCategory;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.isEditing ? 'Edit Budget' : 'New Budget'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<CategoryModel>(
+              value: _selectedCategory,
+              items: [
+                for (final c in widget.availableCategories)
+                  DropdownMenuItem(
+                    value: c,
+                    child: Row(children: [
+                      Icon(c.icon),
+                      const SizedBox(width: 8),
+                      Text(c.name),
+                    ]),
+                  ),
+              ],
+              onChanged: widget.isEditing
+                  ? null
+                  : (v) {
+                      setState(() => _selectedCategory = v);
+                    },
+              decoration: const InputDecoration(labelText: 'Category'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: widget.limitCtrl,
+              decoration: const InputDecoration(labelText: 'Monthly limit (Rp)'),
+              keyboardType: TextInputType.number,
+              inputFormatters: [RupiahThousandsFormatter()],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () async {
+            await widget.onSave(_selectedCategory, widget.limitCtrl.text);
+          },
+          child: const Text('Save'),
+        ),
+      ],
     );
   }
 }
