@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/transaction_repository.dart';
 import '../../data/category_repository.dart';
@@ -11,18 +12,7 @@ import '../widgets/transaction_list_item.dart';
 import 'edit_transaction_screen.dart';
 
 class SearchScreen extends StatefulWidget {
-  final AppState state;
-  final TransactionRepository txRepo;
-  final CategoryRepository categoryRepo;
-  final WalletRepository walletRepo;
-
-  const SearchScreen({
-    super.key,
-    required this.state,
-    required this.txRepo,
-    required this.categoryRepo,
-    required this.walletRepo,
-  });
+  const SearchScreen({super.key});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -38,10 +28,19 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _walletFilter;
   DateTimeRange? _dateRange;
 
+  late final TransactionRepository _txRepo;
+  late final CategoryRepository _categoryRepo;
+  late final WalletRepository _walletRepo;
+  late final AppState _state;
+
   @override
   void initState() {
     super.initState();
-    _filteredEntries = widget.txRepo.getAll();
+    _txRepo = context.read<TransactionRepository>();
+    _categoryRepo = context.read<CategoryRepository>();
+    _walletRepo = context.read<WalletRepository>();
+    _state = context.read<AppState>();
+    _filteredEntries = _txRepo.getAll();
   }
 
   @override
@@ -51,7 +50,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _applyFilters() {
-    final allEntries = widget.txRepo.getAll();
+    final allEntries = _txRepo.getAll();
     final searchQuery = _searchController.text.toLowerCase();
 
     setState(() {
@@ -102,7 +101,7 @@ class _SearchScreenState extends State<SearchScreen> {
       _categoryFilter = null;
       _walletFilter = null;
       _dateRange = null;
-      _filteredEntries = widget.txRepo.getAll();
+      _filteredEntries = _txRepo.getAll();
     });
   }
 
@@ -220,7 +219,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 FilterChip(
                   label: Text(_categoryFilter == null
                       ? 'Category'
-                      : widget.categoryRepo.getById(_categoryFilter!)?.name ?? 'Category'),
+                      : _categoryRepo.getById(_categoryFilter!)?.name ?? 'Category'),
                   selected: _categoryFilter != null,
                   onSelected: (selected) async {
                     if (!selected) {
@@ -229,7 +228,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       return;
                     }
 
-                    final categories = widget.categoryRepo.all();
+                    final categories = _categoryRepo.all();
                     final category = await showDialog<CategoryModel>(
                       context: context,
                       builder: (context) => SimpleDialog(
@@ -262,7 +261,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 FilterChip(
                   label: Text(_walletFilter == null
                       ? 'Wallet'
-                      : widget.walletRepo.getById(_walletFilter!)?.name ?? 'Wallet'),
+                      : _walletRepo.getById(_walletFilter!)?.name ?? 'Wallet'),
                   selected: _walletFilter != null,
                   onSelected: (selected) async {
                     if (!selected) {
@@ -271,7 +270,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       return;
                     }
 
-                    final wallets = widget.walletRepo.all();
+                    final wallets = _walletRepo.all();
                     final wallet = await showDialog<WalletModel>(
                       context: context,
                       builder: (context) => SimpleDialog(
@@ -394,18 +393,15 @@ class _SearchScreenState extends State<SearchScreen> {
                           return ok ?? false;
                         },
                         onDismissed: (_) {
-                          widget.state.deleteTransaction(entry);
+                          _state.deleteTransaction(entry);
                           _applyFilters();
                         },
                         child: TransactionListItem(
                           entry: entry,
-                          categoryRepo: widget.categoryRepo,
+                          categoryRepo: _categoryRepo,
                           onTap: () async {
                             await Navigator.of(context).push(MaterialPageRoute(
                               builder: (_) => EditTransactionScreen(
-                                state: widget.state,
-                                categoryRepo: widget.categoryRepo,
-                                walletRepo: widget.walletRepo,
                                 keyId: entry.key,
                                 initial: entry.model,
                               ),

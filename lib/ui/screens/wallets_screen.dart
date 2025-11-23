@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/wallet_repository.dart';
 import '../../models/wallet_model.dart';
@@ -11,16 +12,25 @@ import 'edit_transaction_screen.dart';
 import '../../state/app_state.dart';
 
 class WalletsScreen extends StatefulWidget {
-  final WalletRepository repo;
-  final AppState state;
-  final CategoryRepository categoryRepo;
-  const WalletsScreen({super.key, required this.repo, required this.state, required this.categoryRepo});
+  const WalletsScreen({super.key});
 
   @override
   State<WalletsScreen> createState() => _WalletsScreenState();
 }
 
 class _WalletsScreenState extends State<WalletsScreen> {
+  late final WalletRepository _repo;
+  late final AppState _state;
+  late final CategoryRepository _categoryRepo;
+
+  @override
+  void initState() {
+    super.initState();
+    _repo = context.read<WalletRepository>();
+    _state = context.read<AppState>();
+    _categoryRepo = context.read<CategoryRepository>();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -40,15 +50,15 @@ class _WalletsScreenState extends State<WalletsScreen> {
         child: const Icon(Icons.add),
         onPressed: () async {
           await Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => EditTransactionScreen(state: widget.state, categoryRepo: widget.categoryRepo, walletRepo: widget.repo),
+            builder: (_) => const EditTransactionScreen(),
           ));
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: ValueListenableBuilder(
-        valueListenable: widget.repo.listenable(),
+        valueListenable: _repo.listenable(),
         builder: (context, box, _) {
-          final items = widget.repo.all();
+          final items = _repo.all();
           return ListView.separated(
             itemCount: items.length,
             separatorBuilder: (_, __) => const Divider(height: 0),
@@ -80,7 +90,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                             ),
                           );
                           if (ok == true) {
-                            await widget.repo.deleteAt(index);
+                            await _repo.deleteAt(index);
                           }
                         },
                       ),
@@ -91,12 +101,8 @@ class _WalletsScreenState extends State<WalletsScreen> {
           );
         },
       ),
-      bottomNavigationBar: AppBottomBar(
+      bottomNavigationBar: const AppBottomBar(
         current: AppSection.settings,
-        walletRepo: widget.repo,
-        categoryRepo: widget.categoryRepo,
-        txRepo: TransactionRepository(),
-        state: widget.state,
         withNotch: true,
       ),
     );
@@ -138,9 +144,9 @@ class _WalletsScreenState extends State<WalletsScreen> {
               final balance = parseRupiahToDouble(balanceCtrl.text.trim());
               if (name.isEmpty) return;
               if (existing == null) {
-                await widget.repo.add(WalletModel(id: WalletRepository.newId(), name: name, balance: balance));
+                await _repo.add(WalletModel(id: WalletRepository.newId(), name: name, balance: balance));
               } else {
-                await widget.repo.putAt(index!, existing.copyWith(name: name, balance: balance));
+                await _repo.putAt(index!, existing.copyWith(name: name, balance: balance));
               }
               if (context.mounted) Navigator.pop(context);
             },

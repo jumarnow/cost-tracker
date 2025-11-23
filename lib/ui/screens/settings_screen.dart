@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 
@@ -14,20 +15,7 @@ import 'categories_screen.dart';
 import 'wallets_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  final AppState state;
-  final TransactionRepository txRepo;
-  final CategoryRepository categoryRepo;
-  final WalletRepository walletRepo;
-  final BudgetRepository budgetRepo;
-
-  const SettingsScreen({
-    super.key,
-    required this.state,
-    required this.txRepo,
-    required this.categoryRepo,
-    required this.walletRepo,
-    required this.budgetRepo,
-  });
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -39,9 +27,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isExporting = false;
   bool _isImporting = false;
 
+  late final AppState _state;
+  late final TransactionRepository _txRepo;
+  late final CategoryRepository _categoryRepo;
+  late final WalletRepository _walletRepo;
+  late final BudgetRepository _budgetRepo;
+  late final ExportService _exportService;
+
   @override
   void initState() {
     super.initState();
+    _state = context.read<AppState>();
+    _txRepo = context.read<TransactionRepository>();
+    _categoryRepo = context.read<CategoryRepository>();
+    _walletRepo = context.read<WalletRepository>();
+    _budgetRepo = context.read<BudgetRepository>();
+    _exportService = context.read<ExportService>();
     _firstDayOfMonth = _settingsRepo.getFirstDayOfMonth();
   }
 
@@ -49,14 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isExporting = true);
     
     try {
-      final exportService = ExportService(
-        transactionRepo: widget.txRepo,
-        categoryRepo: widget.categoryRepo,
-        walletRepo: widget.walletRepo,
-        budgetRepo: widget.budgetRepo,
-      );
-      
-      final file = await exportService.exportToJson();
+      final file = await _exportService.exportToJson();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -88,14 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isExporting = true);
     
     try {
-      final exportService = ExportService(
-        transactionRepo: widget.txRepo,
-        categoryRepo: widget.categoryRepo,
-        walletRepo: widget.walletRepo,
-        budgetRepo: widget.budgetRepo,
-      );
-      
-      final file = await exportService.exportTransactionsToCsv();
+      final file = await _exportService.exportTransactionsToCsv();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -158,19 +145,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isImporting = true);
 
     try {
-      final exportService = ExportService(
-        transactionRepo: widget.txRepo,
-        categoryRepo: widget.categoryRepo,
-        walletRepo: widget.walletRepo,
-        budgetRepo: widget.budgetRepo,
-      );
-
       final file = File(result.files.first.path!);
-      final importResult = await exportService.importFromJson(file);
+      final importResult = await _exportService.importFromJson(file);
 
       if (mounted) {
         if (importResult.success) {
-          widget.state.load(); // Refresh data
+          _state.load(); // Refresh data
           
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -208,12 +188,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(
         title: const Text('Settings'),
       ),
-      bottomNavigationBar: AppBottomBar(
+      bottomNavigationBar: const AppBottomBar(
         current: AppSection.settings,
-        walletRepo: widget.walletRepo,
-        categoryRepo: widget.categoryRepo,
-        txRepo: widget.txRepo,
-        state: widget.state,
       ),
       body: ListView(
         children: [
@@ -236,11 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => CategoriesScreen(
-                  repo: widget.categoryRepo,
-                  state: widget.state,
-                  walletRepo: widget.walletRepo,
-                ),
+                builder: (_) => const CategoriesScreen(),
               ));
             },
           ),
@@ -252,11 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => WalletsScreen(
-                  repo: widget.walletRepo,
-                  state: widget.state,
-                  categoryRepo: widget.categoryRepo,
-                ),
+                builder: (_) => const WalletsScreen(),
               ));
             },
           ),
@@ -365,7 +333,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (selected != null && selected != _firstDayOfMonth) {
       await _settingsRepo.setFirstDayOfMonth(selected);
       setState(() => _firstDayOfMonth = selected);
-      widget.state.load(); // Refresh calculations
+      _state.load(); // Refresh calculations
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/transaction_repository.dart';
 import '../../data/category_repository.dart';
@@ -11,23 +12,18 @@ import 'edit_transaction_screen.dart';
 class CategoryTransactionsScreen extends StatelessWidget {
   final String categoryId;
   final MonthPeriod period;
-  final TransactionRepository txRepo;
-  final CategoryRepository categoryRepo;
-  final WalletRepository walletRepo;
-  final AppState state;
 
   const CategoryTransactionsScreen({
     super.key,
     required this.categoryId,
     required this.period,
-    required this.txRepo,
-    required this.categoryRepo,
-    required this.walletRepo,
-    required this.state,
   });
 
   @override
   Widget build(BuildContext context) {
+    final txRepo = context.read<TransactionRepository>();
+    final categoryRepo = context.read<CategoryRepository>();
+
     final category = categoryRepo.getById(categoryId);
     final title = category?.name ?? 'Category';
     return Scaffold(
@@ -56,9 +52,6 @@ class CategoryTransactionsScreen extends StatelessWidget {
                 onTap: () async {
                   await Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => EditTransactionScreen(
-                      state: state,
-                      categoryRepo: categoryRepo,
-                      walletRepo: walletRepo,
                       keyId: entry.key,
                       initial: entry.model,
                     ),

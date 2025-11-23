@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/transaction_repository.dart';
 import '../../data/category_repository.dart';
@@ -12,15 +13,24 @@ import 'search_screen.dart';
 import '../widgets/app_bottom_bar.dart';
 
 class HomeScreen extends StatelessWidget {
-  final AppState state;
-  final TransactionRepository repo;
-  final CategoryRepository categoryRepo;
-  final WalletRepository walletRepo;
-
-  const HomeScreen({super.key, required this.state, required this.repo, required this.categoryRepo, required this.walletRepo});
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    return const _HomeScreenContent();
+  }
+}
+
+class _HomeScreenContent extends StatelessWidget {
+  const _HomeScreenContent();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final repo = context.read<TransactionRepository>();
+    final categoryRepo = context.read<CategoryRepository>();
+    final walletRepo = context.read<WalletRepository>();
+
     return AnimatedBuilder(
       animation: state,
       builder: (context, _) => Scaffold(
@@ -32,12 +42,7 @@ class HomeScreen extends StatelessWidget {
               tooltip: 'Search transactions',
               onPressed: () {
                 Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => SearchScreen(
-                    state: state,
-                    txRepo: repo,
-                    categoryRepo: categoryRepo,
-                    walletRepo: walletRepo,
-                  ),
+                  builder: (_) => const SearchScreen(),
                 ));
               },
             ),
@@ -48,18 +53,14 @@ class HomeScreen extends StatelessWidget {
           tooltip: 'Add transaction',
           onPressed: () async {
             await Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => EditTransactionScreen(state: state, categoryRepo: categoryRepo, walletRepo: walletRepo),
+              builder: (_) => const EditTransactionScreen(),
             ));
           },
           child: const Icon(Icons.add),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        bottomNavigationBar: AppBottomBar(
+        bottomNavigationBar: const AppBottomBar(
           current: AppSection.home,
-          walletRepo: walletRepo,
-          categoryRepo: categoryRepo,
-          txRepo: repo,
-          state: state,
           withNotch: true,
         ),
         body: RefreshIndicator(
@@ -77,7 +78,7 @@ class HomeScreen extends StatelessWidget {
                   child: Center(child: Text('No transactions yet. Tap + to add.')),
                 )
               else
-                ..._buildGroupedEntries(context, state),
+                ..._buildGroupedEntries(context, state, categoryRepo, walletRepo),
             ],
           ),
         ),
@@ -85,7 +86,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildGroupedEntries(BuildContext context, AppState state) {
+  List<Widget> _buildGroupedEntries(BuildContext context, AppState state, CategoryRepository categoryRepo, WalletRepository walletRepo) {
     final groups = <DateTime, List<TransactionEntry>>{};
     for (final e in state.entries) {
       final d = DateTime(e.model.date.year, e.model.date.month, e.model.date.day);
@@ -159,9 +160,6 @@ class HomeScreen extends StatelessWidget {
               onTap: () async {
                 await Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => EditTransactionScreen(
-                    state: state,
-                    categoryRepo: categoryRepo,
-                    walletRepo: walletRepo,
                     keyId: e.key,
                     initial: e.model,
                   ),

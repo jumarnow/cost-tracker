@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/budget_repository.dart';
 import '../../data/category_repository.dart';
@@ -13,19 +14,11 @@ enum AppSection { home, budgets, reports, settings }
 
 class AppBottomBar extends StatelessWidget {
   final AppSection current;
-  final WalletRepository walletRepo;
-  final CategoryRepository categoryRepo;
-  final TransactionRepository txRepo;
   final bool withNotch;
-  final AppState state;
 
   const AppBottomBar({
     super.key,
     required this.current,
-    required this.walletRepo,
-    required this.categoryRepo,
-    required this.txRepo,
-    required this.state,
     this.withNotch = false,
   });
 
@@ -59,13 +52,7 @@ class AppBottomBar extends StatelessWidget {
                       ? null
                       : () => Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => BudgetsScreen(
-                                budgetRepo: BudgetRepository(),
-                                categoryRepo: categoryRepo,
-                                txRepo: txRepo,
-                                state: state,
-                                walletRepo: walletRepo,
-                              ),
+                              builder: (_) => const BudgetsScreen(),
                             ),
                           ),
                 ),
@@ -80,7 +67,7 @@ class AppBottomBar extends StatelessWidget {
                       ? null
                       : () => Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => ReportsScreen(state: state, txRepo: txRepo, categoryRepo: categoryRepo, walletRepo: walletRepo),
+                              builder: (_) => const ReportsScreen(),
                             ),
                           ),
                 ),
@@ -94,13 +81,7 @@ class AppBottomBar extends StatelessWidget {
                       ? null
                       : () => Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => SettingsScreen(
-                                state: state,
-                                txRepo: txRepo,
-                                categoryRepo: categoryRepo,
-                                walletRepo: walletRepo,
-                                budgetRepo: BudgetRepository(),
-                              ),
+                              builder: (_) => const SettingsScreen(),
                             ),
                           ),
                 ),

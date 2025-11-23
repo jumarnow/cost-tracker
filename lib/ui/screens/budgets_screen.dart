@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/budget_repository.dart';
 import '../../data/category_repository.dart';
@@ -15,13 +16,7 @@ import '../../data/settings_repository.dart';
 import '../../utils/date_period.dart';
 
 class BudgetsScreen extends StatefulWidget {
-  final BudgetRepository budgetRepo;
-  final CategoryRepository categoryRepo;
-  final TransactionRepository txRepo;
-  final AppState state;
-  final WalletRepository walletRepo;
-
-  const BudgetsScreen({super.key, required this.budgetRepo, required this.categoryRepo, required this.txRepo, required this.state, required this.walletRepo});
+  const BudgetsScreen({super.key});
 
   @override
   State<BudgetsScreen> createState() => _BudgetsScreenState();
@@ -29,11 +24,21 @@ class BudgetsScreen extends StatefulWidget {
 
 class _BudgetsScreenState extends State<BudgetsScreen> {
   late final DateTime _now;
+  late final BudgetRepository _budgetRepo;
+  late final CategoryRepository _categoryRepo;
+  late final TransactionRepository _txRepo;
+  late final AppState _state;
+  late final WalletRepository _walletRepo;
 
   @override
   void initState() {
     super.initState();
     _now = DateTime.now();
+    _budgetRepo = context.read<BudgetRepository>();
+    _categoryRepo = context.read<CategoryRepository>();
+    _txRepo = context.read<TransactionRepository>();
+    _state = context.read<AppState>();
+    _walletRepo = context.read<WalletRepository>();
   }
 
   @override
@@ -59,13 +64,13 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         child: const Icon(Icons.add),
         onPressed: () async {
           await Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => EditTransactionScreen(state: widget.state, categoryRepo: widget.categoryRepo, walletRepo: widget.walletRepo),
+            builder: (_) => const EditTransactionScreen(),
           ));
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: ValueListenableBuilder(
-        valueListenable: widget.budgetRepo.listenable(),
+        valueListenable: _budgetRepo.listenable(),
         builder: (context, box, _) {
           final all = box.values.toList();
           final items = all.where((b) => b.year == year && b.month == month).toList();
@@ -83,7 +88,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             separatorBuilder: (_, __) => const Divider(height: 0),
             itemBuilder: (context, index) {
               final b = items[index];
-              final category = widget.categoryRepo.getById(b.categoryId);
+              final category = _categoryRepo.getById(b.categoryId);
               final spent = _spentForCategoryThisMonth(b.categoryId);
               final progress = b.limit <= 0 ? 0.0 : (spent / b.limit).clamp(0.0, 1.0);
               final over = spent > b.limit;
@@ -131,7 +136,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                           ),
                         );
                         if (ok == true) {
-                          await widget.budgetRepo.deleteAt(boxIndex);
+                          await _budgetRepo.deleteAt(boxIndex);
                         }
                       },
                     ),
@@ -142,12 +147,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           );
         },
       ),
-      bottomNavigationBar: AppBottomBar(
+      bottomNavigationBar: const AppBottomBar(
         current: AppSection.budgets,
-        walletRepo: widget.walletRepo,
-        categoryRepo: widget.categoryRepo,
-        txRepo: widget.txRepo,
-        state: widget.state,
         withNotch: true,
       ),
     );
@@ -159,7 +160,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final monthStart = period.start;
     final nextMonth = period.end;
     double total = 0;
-    for (final e in widget.txRepo.getAll()) {
+    for (final e in _txRepo.getAll()) {
       final t = e.model;
       if (t.categoryId == categoryId &&
           t.type == TransactionType.expense &&
@@ -173,22 +174,21 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
   Future<void> _openEditor(BuildContext context, {BudgetModel? existing, int? boxIndex}) async {
     final isEditing = existing != null;
-    final expenseCategories = widget
-        .categoryRepo
+    final expenseCategories = _categoryRepo
         .all()
         .where((c) => c.type == CategoryType.expense)
         .toList();
 
     // Exclude already-budgeted categories when creating
     final now = DateTime.now();
-    final budgetsThisMonth = widget.budgetRepo.forMonth(now.year, now.month);
+    final budgetsThisMonth = _budgetRepo.forMonth(now.year, now.month);
     final usedIds = budgetsThisMonth.map((b) => b.categoryId).toSet();
     final availableCategories = isEditing
         ? expenseCategories
         : expenseCategories.where((c) => !usedIds.contains(c.id)).toList();
 
     CategoryModel? selectedCategory = isEditing
-        ? widget.categoryRepo.getById(existing!.categoryId)
+        ? _categoryRepo.getById(existing!.categoryId)
         : (availableCategories.isNotEmpty ? availableCategories.first : null);
 
     final limitCtrl = TextEditingController(
@@ -239,9 +239,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 limit: limit,
               );
               if (isEditing) {
-                await widget.budgetRepo.putAt(boxIndex!, model);
+                await _budgetRepo.putAt(boxIndex!, model);
               } else {
-                await widget.budgetRepo.upsertById(model);
+                await _budgetRepo.upsertById(model);
               }
               if (context.mounted) Navigator.pop(context);
             },

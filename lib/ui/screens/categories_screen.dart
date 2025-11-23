@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../icons/category_icons.dart';
 
 import '../../data/category_repository.dart';
@@ -10,16 +11,25 @@ import 'edit_transaction_screen.dart';
 import '../../models/category_model.dart';
 
 class CategoriesScreen extends StatefulWidget {
-  final CategoryRepository repo;
-  final AppState state;
-  final WalletRepository walletRepo;
-  const CategoriesScreen({super.key, required this.repo, required this.state, required this.walletRepo});
+  const CategoriesScreen({super.key});
 
   @override
   State<CategoriesScreen> createState() => _CategoriesScreenState();
 }
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
+  late final CategoryRepository _repo;
+  late final AppState _state;
+  late final WalletRepository _walletRepo;
+
+  @override
+  void initState() {
+    super.initState();
+    _repo = context.read<CategoryRepository>();
+    _state = context.read<AppState>();
+    _walletRepo = context.read<WalletRepository>();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,15 +51,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         child: const Icon(Icons.add),
         onPressed: () async {
           await Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => EditTransactionScreen(state: widget.state, categoryRepo: widget.repo, walletRepo: widget.walletRepo),
+            builder: (_) => const EditTransactionScreen(),
           ));
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       body: ValueListenableBuilder(
-        valueListenable: widget.repo.listenable(),
+        valueListenable: _repo.listenable(),
         builder: (context, box, _) {
-          final items = widget.repo.all();
+          final items = _repo.all();
           return ListView.separated(
             itemCount: items.length,
             separatorBuilder: (_, __) => const Divider(height: 0),
@@ -84,7 +94,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                         );
                         if (ok == true) {
                           final key = box.keyAt(index);
-                          await widget.repo.deleteAt(key as int);
+                          await _repo.deleteAt(key as int);
                         }
                       },
                     ),
@@ -95,12 +105,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           );
         },
       ),
-      bottomNavigationBar: AppBottomBar(
+      bottomNavigationBar: const AppBottomBar(
         current: AppSection.settings,
-        walletRepo: widget.walletRepo,
-        categoryRepo: widget.repo,
-        txRepo: TransactionRepository(),
-        state: widget.state,
         withNotch: true,
       ),
     );
@@ -169,11 +175,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                   if (name.isEmpty) return;
                   if (existing == null) {
                     final c = CategoryModel(id: CategoryRepository.newId(), name: name, iconCodePoint: selectedIcon, type: selectedType);
-                    await widget.repo.add(c);
+                    await _repo.add(c);
                   } else {
                     final updated = existing.copyWith(name: name, iconCodePoint: selectedIcon, type: selectedType);
-                    final key = widget.repo.listenable().value.keyAt(index!);
-                    await widget.repo.putAt(key as int, updated);
+                    final key = _repo.listenable().value.keyAt(index!);
+                    await _repo.putAt(key as int, updated);
                   }
                   if (context.mounted) Navigator.pop(context);
                 },

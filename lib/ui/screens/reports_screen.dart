@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:math' as Math;
 import 'package:fl_chart/fl_chart.dart';
 
@@ -15,18 +16,7 @@ import '../../data/settings_repository.dart';
 import '../../utils/date_period.dart';
 
 class ReportsScreen extends StatefulWidget {
-  final TransactionRepository txRepo;
-  final CategoryRepository categoryRepo;
-  final WalletRepository walletRepo;
-  final AppState state;
-
-  const ReportsScreen({
-    super.key,
-    required this.txRepo,
-    required this.categoryRepo,
-    required this.walletRepo,
-    required this.state,
-  });
+  const ReportsScreen({super.key});
 
   @override
   State<ReportsScreen> createState() => _ReportsScreenState();
@@ -35,10 +25,18 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen> {
   late DateTime _selectedMonth;
   late MonthPeriod _period;
+  late final TransactionRepository _txRepo;
+  late final CategoryRepository _categoryRepo;
+  late final WalletRepository _walletRepo;
+  late final AppState _state;
 
   @override
   void initState() {
     super.initState();
+    _txRepo = context.read<TransactionRepository>();
+    _categoryRepo = context.read<CategoryRepository>();
+    _walletRepo = context.read<WalletRepository>();
+    _state = context.read<AppState>();
     _selectedMonth = DateTime.now();
     final firstDay = SettingsRepository().getFirstDayOfMonth();
     _period = computeCustomMonthPeriod(_selectedMonth, firstDay);
@@ -78,11 +76,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: const Icon(Icons.add),
         onPressed: () async {
           await Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => EditTransactionScreen(
-              state: widget.state,
-              categoryRepo: widget.categoryRepo,
-              walletRepo: widget.walletRepo,
-            ),
+            builder: (_) => const EditTransactionScreen(),
           ));
           if (context.mounted) setState(() {});
         },
@@ -95,9 +89,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           final firstDay = SettingsRepository().getFirstDayOfMonth();
           _period = computeCustomMonthPeriod(_selectedMonth, firstDay);
           return ValueListenableBuilder(
-            valueListenable: widget.txRepo.listenable(),
+            valueListenable: _txRepo.listenable(),
             builder: (context, _, __) {
-              final entries = widget.txRepo.getAll();
+              final entries = _txRepo.getAll();
               final daily = _buildDailySeries(entries);
               final categories = _buildCategoryBreakdown(entries);
               final daysInPeriod = _period.end.difference(_period.start).inDays;
@@ -145,7 +139,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   const SizedBox(height: 16),
                   Text('Expenses by Category', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  _Card(child: _CategoryPieChart(data: categories, categoryRepo: widget.categoryRepo, palette: palette)),
+                  _Card(child: _CategoryPieChart(data: categories, categoryRepo: _categoryRepo, palette: palette)),
                   const SizedBox(height: 16),
                   Text('Category Details', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
@@ -159,7 +153,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       final idx = entry.key;
                       final item = entry.value;
                       final color = palette[idx % palette.length];
-                      final cat = widget.categoryRepo.getById(item.categoryId);
+                      final cat = _categoryRepo.getById(item.categoryId);
                       final label = cat?.name ?? 'Unknown';
                       return _CategoryRow(
                         label: label,
@@ -170,10 +164,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             builder: (_) => CategoryTransactionsScreen(
                               categoryId: item.categoryId,
                               period: _period,
-                              txRepo: widget.txRepo,
-                              categoryRepo: widget.categoryRepo,
-                              walletRepo: widget.walletRepo,
-                              state: widget.state,
                             ),
                           ));
                         },
@@ -185,12 +175,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
           );
         },
       ),
-      bottomNavigationBar: AppBottomBar(
+      bottomNavigationBar: const AppBottomBar(
         current: AppSection.reports,
-        walletRepo: widget.walletRepo,
-        categoryRepo: widget.categoryRepo,
-        txRepo: widget.txRepo,
-        state: widget.state,
         withNotch: true,
       ),
     );

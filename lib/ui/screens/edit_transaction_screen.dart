@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../data/category_repository.dart';
 import '../../data/transaction_repository.dart';
@@ -12,17 +13,11 @@ import '../../utils/currency.dart';
 import 'package:flutter/services.dart';
 
 class EditTransactionScreen extends StatefulWidget {
-  final AppState state;
-  final CategoryRepository categoryRepo;
-  final WalletRepository walletRepo;
   final int? keyId; // if null, create new
   final TransactionModel? initial;
 
   const EditTransactionScreen({
     super.key,
-    required this.state,
-    required this.categoryRepo,
-    required this.walletRepo,
     this.keyId,
     this.initial,
   });
@@ -40,9 +35,17 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
 
+  late final AppState _state;
+  late final CategoryRepository _categoryRepo;
+  late final WalletRepository _walletRepo;
+
   @override
   void initState() {
     super.initState();
+    _state = context.read<AppState>();
+    _categoryRepo = context.read<CategoryRepository>();
+    _walletRepo = context.read<WalletRepository>();
+    
     final t = widget.initial;
     _type = t?.type ?? TransactionType.expense;
     _categoryId = t?.categoryId ?? _defaultCategoryForType(_type);
@@ -91,9 +94,9 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
     );
     if (widget.keyId == null) {
-      await widget.state.addTransaction(model);
+      await _state.addTransaction(model);
     } else {
-      await widget.state.updateTransaction(widget.keyId!, model, widget.initial!);
+      await _state.updateTransaction(widget.keyId!, model, widget.initial!);
     }
     if (mounted) Navigator.of(context).pop();
   }
@@ -110,7 +113,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             icon: const Icon(Icons.category),
             onPressed: () async {
               await Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => CategoriesScreen(repo: widget.categoryRepo, state: widget.state, walletRepo: widget.walletRepo),
+                builder: (_) => const CategoriesScreen(),
               ));
               setState(() {}); // refresh dropdown after returning
             },
@@ -132,7 +135,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                 setState(() {
                   _type = s.first;
                   // Reset category if mismatched
-                  final cat = widget.categoryRepo.getById(_categoryId);
+                  final cat = _categoryRepo.getById(_categoryId);
                   if (cat == null || !_matchesType(cat.type, _type)) {
                     _categoryId = _defaultCategoryForType(_type);
                   }
@@ -153,7 +156,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               value: _categoryId,
-              items: widget.categoryRepo
+              items: _categoryRepo
                   .all()
                   .where((c) => _matchesType(c.type, _type))
                   .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
@@ -164,7 +167,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               value: _walletId,
-              items: widget.walletRepo
+              items: _walletRepo
                   .all()
                   .map((w) => DropdownMenuItem(value: w.id, child: Text(w.name)))
                   .toList(),
