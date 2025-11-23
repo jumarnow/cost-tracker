@@ -127,6 +127,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  
+                  // Total Income and Expense Summary
+                  _TotalSummaryCard(entries: entries, period: _period),
+                  
+                  const SizedBox(height: 16),
                   Text('This Month', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   _Card(
@@ -589,6 +594,109 @@ class _LegendEntry {
   final String label;
   final double amount;
   _LegendEntry({required this.color, required this.label, required this.amount});
+}
+
+class _TotalSummaryCard extends StatelessWidget {
+  final List<TransactionEntry> entries;
+  final MonthPeriod period;
+
+  const _TotalSummaryCard({required this.entries, required this.period});
+
+  @override
+  Widget build(BuildContext context) {
+    double totalIncome = 0;
+    double totalExpense = 0;
+
+    for (final entry in entries) {
+      final t = entry.model;
+      if (t.date.isBefore(period.start) || !t.date.isBefore(period.end)) continue;
+      
+      if (t.type == TransactionType.income) {
+        totalIncome += t.amount;
+      } else {
+        totalExpense += t.amount;
+      }
+    }
+
+    final balance = totalIncome - totalExpense;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pendapatan',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formatRupiah(totalIncome),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pengeluaran',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formatRupiah(totalExpense),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.red[700],
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Saldo',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  formatRupiah(balance),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: balance >= 0 ? Colors.green[700] : Colors.red[700],
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _CategoryReportItem {
