@@ -336,7 +336,7 @@ class _SummaryCard extends StatelessWidget {
                         const SizedBox(height: 12),
                         Text(
                           formatRupiah(income),
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: Colors.green[700],
                             fontWeight: FontWeight.w800,
                           ),
@@ -382,7 +382,7 @@ class _SummaryCard extends StatelessWidget {
                         const SizedBox(height: 12),
                         Text(
                           formatRupiah(expense),
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: Colors.red[700],
                             fontWeight: FontWeight.w800,
                           ),

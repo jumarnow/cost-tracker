@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 
 import '../../data/transaction_repository.dart';
@@ -47,28 +48,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _exportJson() async {
+    // Show dialog to choose export method
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Export Backup'),
+        content: const Text('Pilih cara menyimpan file backup:'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'cancel'),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'share'),
+            child: const Text('Bagikan'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const Text('Simpan ke File'),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == null || choice == 'cancel') return;
+
     setState(() => _isExporting = true);
     
     try {
       final file = await _exportService.exportToJson();
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Data exported to:\n${file.path}'),
-            duration: const Duration(seconds: 4),
-            action: SnackBarAction(
-              label: 'OK',
-              onPressed: () {},
-            ),
-          ),
+      if (!mounted) return;
+
+      if (choice == 'share') {
+        // Share the file
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          subject: 'Finance Tracker Backup',
+          text: 'Backup data Finance Tracker',
         );
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('File backup siap dibagikan'),
+            ),
+          );
+        }
+      } else {
+        // Save to user-selected location
+        final fileName = file.path.split('/').last;
+        final savePath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Simpan Backup',
+          fileName: fileName,
+          type: FileType.custom,
+          allowedExtensions: ['json'],
+        );
+
+        if (savePath != null) {
+          // Copy file to selected location
+          final content = await file.readAsBytes();
+          await File(savePath).writeAsBytes(content);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Backup disimpan ke:\n$savePath'),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Export failed: $e'),
+            content: Text('Export gagal: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -79,28 +135,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _exportCsv() async {
+    // Show dialog to choose export method
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Export Transaksi'),
+        content: const Text('Pilih cara menyimpan file CSV:'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'cancel'),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'share'),
+            child: const Text('Bagikan'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const Text('Simpan ke File'),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == null || choice == 'cancel') return;
+
     setState(() => _isExporting = true);
     
     try {
       final file = await _exportService.exportTransactionsToCsv();
       
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Transactions exported to:\n${file.path}'),
-            duration: const Duration(seconds: 4),
-            action: SnackBarAction(
-              label: 'OK',
-              onPressed: () {},
-            ),
-          ),
+      if (!mounted) return;
+
+      if (choice == 'share') {
+        // Share the file
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          subject: 'Finance Tracker Transactions',
+          text: 'Export transaksi Finance Tracker',
         );
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('File CSV siap dibagikan'),
+            ),
+          );
+        }
+      } else {
+        // Save to user-selected location
+        final fileName = file.path.split('/').last;
+        final savePath = await FilePicker.platform.saveFile(
+          dialogTitle: 'Simpan Transaksi CSV',
+          fileName: fileName,
+          type: FileType.custom,
+          allowedExtensions: ['csv'],
+        );
+
+        if (savePath != null) {
+          // Copy file to selected location
+          final content = await file.readAsBytes();
+          await File(savePath).writeAsBytes(content);
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('CSV disimpan ke:\n$savePath'),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Export failed: $e'),
+            content: Text('Export gagal: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );

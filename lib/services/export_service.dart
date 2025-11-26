@@ -26,6 +26,7 @@ class ExportService {
   });
 
   /// Export all data to JSON
+  /// Returns the file in temp directory - use share or save afterwards
   Future<File> exportToJson() async {
     final data = {
       'version': '1.0',
@@ -59,7 +60,8 @@ class ExportService {
       }).toList(),
     };
 
-    final directory = await getApplicationDocumentsDirectory();
+    // Create file in temporary directory first
+    final directory = await getTemporaryDirectory();
     final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     final file = File('${directory.path}/finance_tracker_backup_$timestamp.json');
     
@@ -68,6 +70,7 @@ class ExportService {
   }
 
   /// Export transactions to CSV
+  /// Returns the file in temp directory - use share or save afterwards
   Future<File> exportTransactionsToCsv({DateTime? startDate, DateTime? endDate}) async {
     final entries = transactionRepo.getAll();
     final filtered = entries.where((e) {
@@ -96,7 +99,8 @@ class ExportService {
       csvLines.add(line);
     }
 
-    final directory = await getApplicationDocumentsDirectory();
+    // Create file in temporary directory first
+    final directory = await getTemporaryDirectory();
     final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     final file = File('${directory.path}/transactions_$timestamp.csv');
     
